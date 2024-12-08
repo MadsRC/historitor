@@ -10,6 +10,7 @@ import (
 var (
 	ErrNoSuchGroup    = fmt.Errorf("no such consumer group")
 	ErrNoSuchConsumer = fmt.Errorf("no such consumer")
+	ErrNoSuchEntry    = fmt.Errorf("no such Entry")
 )
 
 type Log struct {
@@ -71,8 +72,8 @@ func (l *Log) write(id *EntryID, payload any) {
 // Returning an empty slice means there are no log entries to read.
 // Group and consumer name are used to track which log entries have been read by which consumer group members.
 // If a consumer group member has read a log entry, it will not be returned to any other group member.
-// Once a member reads an event, it is added to the Pending Events List for the consumer group and only removed when the
-// member acknowledges the event. Events that are pending will not be returned to any other group member.
+// Once a member reads an Entry, it is added to the Pending Entries List for the consumer group and only removed when the
+// member acknowledges the Entry. Entries that are pending will not be returned to any other group member.
 //
 // Read is safe for concurrent use.
 func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
@@ -107,13 +108,13 @@ func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
 		}
 
 		// check if entry is pending
-		_, ok := group.getPendingEvent(eid)
+		_, ok := group.getPendingEntry(eid)
 		if ok {
 			continue
 		}
 
-		// add entry to pending events list
-		group.addPendingEvent(eid, c)
+		// add entry to Pending Entries List
+		group.addPendingEntry(eid, c)
 		out = append(out, Entry{
 			ID:      eid,
 			Payload: n.Value(),
@@ -135,4 +136,25 @@ func (l *Log) getGroup(name string) (*consumerGroup, bool) {
 	g, ok := l.groups[name]
 	l.treeMux.RUnlock()
 	return &g, ok
+}
+
+// Acknowledge acknowledges that a consumer group member has read a log entry. The log entry is removed from the
+// consumer group's Pending Entries List.
+func (l *Log) Acknowledge(g, c string, id EntryID) error {
+	group, ok := l.getGroup(g)
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrNoSuchGroup, g)
+	}
+
+	pe, ok := group.getPendingEntry(id)
+	if !ok {
+		return fmt.Errorf("entry %s not pending", id)
+	}
+	if pe.consumer != c {
+		return fmt.Errorf("%w: entry %s not pending for consumer %s", ErrNoSuchConsumer, id, c)
+	}
+
+	group.removePendingEntry(id)
+
+	return nil
 }

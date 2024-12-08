@@ -9,7 +9,7 @@ type consumerGroup struct {
 	name    string
 	members map[string]consumerGroupMember
 	mut     sync.RWMutex
-	pel     pendingEventsList
+	pel     pendingEntriesList
 	startAt EntryID
 }
 
@@ -18,7 +18,7 @@ func newConsumerGroup(name string, startAt EntryID) consumerGroup {
 		name:    name,
 		members: make(map[string]consumerGroupMember),
 		mut:     sync.RWMutex{},
-		pel:     make(pendingEventsList),
+		pel:     make(pendingEntriesList),
 		startAt: startAt,
 	}
 }
@@ -64,20 +64,26 @@ func (c *consumerGroup) getMember(name string) (*consumerGroupMember, bool) {
 	return &m, ok
 }
 
-func (c *consumerGroup) getPendingEvent(id EntryID) (*pendingEvent, bool) {
+func (c *consumerGroup) getPendingEntry(id EntryID) (*pendingEntry, bool) {
 	c.mut.RLock()
-	pe, ok := c.pel[id.String()]
+	pe, ok := c.pel[id]
 	c.mut.RUnlock()
 	return &pe, ok
 }
 
-func (c *consumerGroup) addPendingEvent(id EntryID, consumer string) {
+func (c *consumerGroup) addPendingEntry(id EntryID, consumer string) {
 	c.mut.Lock()
-	c.pel[id.String()] = pendingEvent{
+	c.pel[id] = pendingEntry{
 		id:            id,
 		consumer:      consumer,
 		deliveredAt:   time.Now(),
 		deliveryCount: 1,
 	}
+	c.mut.Unlock()
+}
+
+func (c *consumerGroup) removePendingEntry(id EntryID) {
+	c.mut.Lock()
+	delete(c.pel, id)
 	c.mut.Unlock()
 }
