@@ -42,7 +42,7 @@ func TestLog_Read_from_beginning(t *testing.T) {
 			name: "consumer1",
 		},
 	}
-	groups := map[string]consumerGroup{
+	groups := map[string]*consumerGroup{
 		"group1": {
 			name:    "group1",
 			members: groupMembers,

@@ -71,6 +71,18 @@ func (c *consumerGroup) getPendingEntry(id EntryID) (*pendingEntry, bool) {
 	return &pe, ok
 }
 
+func (c *consumerGroup) getPendingEntriesForConsumer(consumer string) []pendingEntry {
+	c.mut.RLock()
+	defer c.mut.RUnlock()
+	var out []pendingEntry
+	for _, pe := range c.pel {
+		if pe.consumer == consumer {
+			out = append(out, pe)
+		}
+	}
+	return out
+}
+
 func (c *consumerGroup) addPendingEntry(id EntryID, consumer string) {
 	c.mut.Lock()
 	c.pel[id] = pendingEntry{
@@ -79,6 +91,21 @@ func (c *consumerGroup) addPendingEntry(id EntryID, consumer string) {
 		deliveredAt:   time.Now(),
 		deliveryCount: 1,
 	}
+	c.mut.Unlock()
+}
+
+// incrementDeliveryCountAndTime increments the delivery count and sets the deliveredAt time for the pending entry with
+// the given ID. If the pending entry does not exist, this function does nothing.
+func (c *consumerGroup) incrementDeliveryCountAndTime(id EntryID) {
+	c.mut.Lock()
+	pe, ok := c.pel[id]
+	if !ok {
+		c.mut.Unlock()
+		return
+	}
+	pe.deliveryCount++
+	pe.deliveredAt = time.Now()
+	c.pel[id] = pe
 	c.mut.Unlock()
 }
 
