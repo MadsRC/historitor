@@ -42,17 +42,22 @@ func NewLog(options ...LogOption) (*Log, error) {
 	}, nil
 }
 
+// Size returns the number of log entries in the log.
+func (l *Log) Size() int {
+	return l.entries.Size()
+}
+
 // Write writes a new log entry to the log. It returns the ID of the log entry.
 //
 // Write is safe for concurrent use.
-func (l *Log) Write(payload any) string {
+func (l *Log) Write(payload any) EntryID {
 	l.treeMux.Lock()
 	id := EntryID{
 		Time: time.Now(),
 	}
 	l.write(&id, payload)
 	l.treeMux.Unlock()
-	return id.String()
+	return id
 }
 
 // write is not safe for concurrent use. It should be called with the treeMux locked.
@@ -221,5 +226,19 @@ func (l *Log) Cleanup() {
 			}
 		}
 	}
+}
 
+// UpdateEntry updates the payload of a log entry. If the log entry does not exist, it will return false.
+//
+// UpdateEntry is safe for concurrent use.
+func (l *Log) UpdateEntry(id EntryID, payload any) bool {
+	l.treeMux.Lock()
+	defer l.treeMux.Unlock()
+
+	_, upd := l.entries.Insert(art.Key(id.String()), payload)
+	if !upd {
+		l.entries.Delete(art.Key(id.String()))
+	}
+
+	return upd
 }
