@@ -15,7 +15,7 @@ var (
 
 type Log struct {
 	name             string
-	groups           map[string]*consumerGroup
+	groups           map[string]*ConsumerGroup
 	treeMux          sync.RWMutex
 	entries          art.Tree
 	firstEntry       EntryID
@@ -36,7 +36,7 @@ func NewLog(options ...LogOption) (*Log, error) {
 	return &Log{
 		name:          opts.Name,
 		maxPendingAge: opts.MaxPendingAge,
-		groups:        make(map[string]*consumerGroup),
+		groups:        make(map[string]*ConsumerGroup),
 		treeMux:       sync.RWMutex{},
 		entries:       art.New(),
 	}, nil
@@ -63,7 +63,10 @@ func (l *Log) Write(payload any) EntryID {
 // write is not safe for concurrent use. It should be called with the treeMux locked.
 // write is a recursive function that will attempt to write a log entry to the log. If the key already exists, it will
 // increment the sequence number and try again by calling itself.
+//
+// The time of the EntryID is truncated to milliseconds.
 func (l *Log) write(id *EntryID, payload any) {
+	id.Time = id.Time.Truncate(time.Millisecond)
 	ov, upd := l.entries.Insert(art.Key(id.String()), payload)
 	if upd {
 		// restore the value we just overwrote
@@ -83,7 +86,7 @@ func (l *Log) write(id *EntryID, payload any) {
 // Once a member reads an Entry, it is added to the Pending Entries List for the consumer group and only removed when the
 // member acknowledges the Entry. Entries that are pending will not be returned to any other group member.
 //
-// If the consumer has pending entries older than [WithMaxPendingAge], up to maxMessages will be returned from the
+// If the consumer has pending entries older than [WithLogMaxPendingAge], up to maxMessages will be returned from the
 // pending entries list before reading from the log.
 //
 // Read is safe for concurrent use.
@@ -121,7 +124,7 @@ func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
 	return out, nil
 }
 
-func (l *Log) addPendingEntries(group *consumerGroup, consumer consumerGroupMember, maxMessages int, entries []Entry) ([]Entry, error) {
+func (l *Log) addPendingEntries(group *ConsumerGroup, consumer Consumer, maxMessages int, entries []Entry) ([]Entry, error) {
 	for _, pe := range group.getPendingEntriesForConsumer(consumer.name) {
 		if time.Since(pe.deliveredAt) > l.maxPendingAge {
 			group.incrementDeliveryCountAndTime(pe.id)
@@ -142,7 +145,7 @@ func (l *Log) addPendingEntries(group *consumerGroup, consumer consumerGroupMemb
 	return entries, nil
 }
 
-func (l *Log) addEntries(group *consumerGroup, consumer consumerGroupMember, maxMessages int, entries []Entry) ([]Entry, error) {
+func (l *Log) addEntries(group *ConsumerGroup, consumer Consumer, maxMessages int, entries []Entry) ([]Entry, error) {
 	var iter art.Iterator
 	if group.GetStartAt() == StartFromBeginning {
 		iter = l.entries.Iterator()
@@ -181,11 +184,17 @@ func (l *Log) addEntries(group *consumerGroup, consumer consumerGroupMember, max
 	return entries, nil
 }
 
-func (l *Log) getGroup(name string) (*consumerGroup, bool) {
+func (l *Log) getGroup(name string) (*ConsumerGroup, bool) {
 	l.treeMux.RLock()
 	g, ok := l.groups[name]
 	l.treeMux.RUnlock()
 	return g, ok
+}
+
+func (l *Log) AddGroup(group *ConsumerGroup) {
+	l.treeMux.Lock()
+	l.groups[group.name] = group
+	l.treeMux.Unlock()
 }
 
 // Acknowledge acknowledges that a consumer group member has read a log entry. The log entry is removed from the
@@ -211,8 +220,8 @@ func (l *Log) Acknowledge(g, c string, id EntryID) error {
 	return nil
 }
 
-// Cleanup removes pending entries that are older than [WithMaxPendingAge] and have been delivered more than
-// [WithMaxDeliveryCount] times. This effectively releases the log entry back to the consumer group for reading.
+// Cleanup removes pending entries that are older than [WithLogMaxPendingAge] and have been delivered more than
+// [WithLogMaxDeliveryCount] times. This effectively releases the log entry back to the consumer group for reading.
 //
 // Cleanup is safe for concurrent use.
 func (l *Log) Cleanup() {

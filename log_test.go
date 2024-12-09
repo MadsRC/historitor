@@ -26,7 +26,7 @@ func TestEntryID(t *testing.T) {
 }
 
 func TestLog_Read_from_beginning(t *testing.T) {
-	l, err := NewLog(WithName("test"))
+	l, err := NewLog(WithLogName("test"))
 	require.NoError(t, err)
 	tree := art.New()
 	keyOne := "1526919030474-55"
@@ -37,12 +37,12 @@ func TestLog_Read_from_beginning(t *testing.T) {
 	tree.Insert(art.Key(keyThree), "three")
 	l.entries = tree
 
-	groupMembers := map[string]consumerGroupMember{
+	groupMembers := map[string]Consumer{
 		"consumer1": {
 			name: "consumer1",
 		},
 	}
-	groups := map[string]*consumerGroup{
+	groups := map[string]*ConsumerGroup{
 		"group1": {
 			name:    "group1",
 			members: groupMembers,

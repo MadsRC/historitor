@@ -1,6 +1,8 @@
 package historitor
 
-import "time"
+import (
+	"time"
+)
 
 type logOptions struct {
 	// Name is the name of the log.
@@ -36,22 +38,22 @@ func newFuncLogOption(f func(*logOptions)) *funcLogOption {
 	}
 }
 
-// WithName returns a LogOption that uses the provided name.
-func WithName(name string) LogOption {
+// WithLogName returns a LogOption that uses the provided name.
+func WithLogName(name string) LogOption {
 	return newFuncLogOption(func(opts *logOptions) {
 		opts.Name = name
 	})
 }
 
-// WithMaxPendingAge returns a LogOption that uses the provided max pending age.
-func WithMaxPendingAge(maxPendingAge time.Duration) LogOption {
+// WithLogMaxPendingAge returns a LogOption that uses the provided max pending age.
+func WithLogMaxPendingAge(maxPendingAge time.Duration) LogOption {
 	return newFuncLogOption(func(opts *logOptions) {
 		opts.MaxPendingAge = maxPendingAge
 	})
 }
 
-// WithMaxDeliveryCount returns a LogOption that uses the provided max delivery count.
-func WithMaxDeliveryCount(maxDeliveryCount int) LogOption {
+// WithLogMaxDeliveryCount returns a LogOption that uses the provided max delivery count.
+func WithLogMaxDeliveryCount(maxDeliveryCount int) LogOption {
 	return newFuncLogOption(func(opts *logOptions) {
 		opts.MaxDeliveryCount = maxDeliveryCount
 	})

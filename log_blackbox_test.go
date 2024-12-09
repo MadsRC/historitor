@@ -43,7 +43,7 @@ func forLine(t TestingT, f func(string)) int {
 // We are reading the entire "On the Origin of Species" book by Charles Darwin and writing each line to the log.
 // We then compare the number of lines in the file with the number of lines in the log.
 func TestLog_Write_lines(t *testing.T) {
-	l, err := historitor.NewLog(historitor.WithName(t.Name()))
+	l, err := historitor.NewLog(historitor.WithLogName(t.Name()))
 	require.NoError(t, err)
 
 	n := forLine(t, func(line string) {
@@ -59,7 +59,7 @@ func TestLog_Write_lines(t *testing.T) {
 //
 // This test should be run with Go's `-race` flag to check for race conditions.
 func TestLog_Write_concurrent(t *testing.T) {
-	l, err := historitor.NewLog(historitor.WithName(t.Name()))
+	l, err := historitor.NewLog(historitor.WithLogName(t.Name()))
 	require.NoError(t, err)
 
 	var n = 10
@@ -97,4 +97,102 @@ func TestLog_Write_concurrent(t *testing.T) {
 	wg.Wait()
 
 	require.Equal(t, tot, l.Size())
+}
+
+// TestLog_Read
+func TestLog_Read(t *testing.T) {
+	c := historitor.NewConsumer(historitor.WithConsumerName(t.Name()))
+	cg := historitor.NewConsumerGroup(historitor.WithConsumerGroupName(t.Name()), historitor.WithConsumerGroupMember(c))
+	l, err := historitor.NewLog(historitor.WithLogName(t.Name()))
+	require.NoError(t, err)
+	l.AddGroup(cg)
+
+	_ = l.Write("value")
+
+	entries, err := l.Read(cg.GetName(), c.GetName(), 1)
+	require.NoError(t, err)
+	err = l.Acknowledge(cg.GetName(), c.GetName(), entries[0].ID)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, len(entries))
+	require.Equal(t, "value", entries[0].Payload.(string))
+
+}
+
+// TestLog_Write_Read_ordered tests that the log writes and reads the expected number of lines in order of writing when
+// a single consumer reads the log.
+func TestLog_Write_Read_ordered(t *testing.T) {
+	c := historitor.NewConsumer(historitor.WithConsumerName(t.Name()))
+	cg := historitor.NewConsumerGroup(historitor.WithConsumerGroupName(t.Name()), historitor.WithConsumerGroupMember(c))
+	l, err := historitor.NewLog(historitor.WithLogName(t.Name()))
+	require.NoError(t, err)
+	l.AddGroup(cg)
+
+	written := []string{
+		"value1",
+		"value2",
+		"value3",
+		"value4",
+		"value5",
+		"value6",
+		"value7",
+		"value8",
+		"value9",
+		"value10",
+		"value11",
+		"value12",
+		"value13",
+		"value14",
+		"value15",
+		"value16",
+		"value17",
+		"value18",
+		"value19",
+		"value20",
+	}
+	out := make([]string, 0)
+
+	for _, v := range written {
+		l.Write(v)
+	}
+
+	entries, err := l.Read(cg.GetName(), c.GetName(), len(written))
+	require.NoError(t, err)
+
+	for _, entry := range entries {
+		out = append(out, entry.Payload.(string))
+		err = l.Acknowledge(cg.GetName(), c.GetName(), entry.ID)
+		require.NoError(t, err)
+	}
+
+	require.Equal(t, len(written), len(entries))
+	require.Equal(t, written, out)
+}
+
+// TestLog_UpdateEntry tests that UpdateEntry updates the entry with the provided ID.
+func TestLog_UpdateEntry(t *testing.T) {
+	c := historitor.NewConsumer(historitor.WithConsumerName(t.Name()))
+	cg := historitor.NewConsumerGroup(historitor.WithConsumerGroupName(t.Name()), historitor.WithConsumerGroupMember(c))
+	l, err := historitor.NewLog(historitor.WithLogName(t.Name()))
+	require.NoError(t, err)
+	l.AddGroup(cg)
+
+	entryID1 := l.Write("valueOne")
+	entryID2 := l.Write("valueTwo")
+	entryID3 := l.Write("valueThree")
+
+	ok := l.UpdateEntry(entryID2, "valueTwoUpdated")
+	require.True(t, ok)
+
+	entries, err := l.Read(cg.GetName(), c.GetName(), 3)
+	require.NoError(t, err)
+
+	require.Equal(t, 3, len(entries))
+	require.Equal(t, "valueOne", entries[0].Payload.(string))
+	require.Equal(t, entryID1, entries[0].ID)
+	require.Equal(t, "valueTwoUpdated", entries[1].Payload.(string))
+	require.Equal(t, entryID2, entries[1].ID)
+	require.Equal(t, "valueThree", entries[2].Payload.(string))
+	require.Equal(t, entryID3, entries[2].ID)
+
 }
