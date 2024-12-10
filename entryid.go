@@ -25,7 +25,7 @@ type EntryID struct {
 }
 
 func (e EntryID) String() string {
-	return fmt.Sprintf("%d-%d", e.Time.UTC().UnixMilli(), e.Seq)
+	return fmt.Sprintf("%d-%013d", e.Time.UTC().UnixMilli(), e.Seq)
 }
 
 func NewEntryID(s string) (EntryID, error) {

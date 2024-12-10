@@ -128,35 +128,19 @@ func TestLog_Write_Read_ordered(t *testing.T) {
 	require.NoError(t, err)
 	l.AddGroup(cg)
 
-	written := []string{
-		"value1",
-		"value2",
-		"value3",
-		"value4",
-		"value5",
-		"value6",
-		"value7",
-		"value8",
-		"value9",
-		"value10",
-		"value11",
-		"value12",
-		"value13",
-		"value14",
-		"value15",
-		"value16",
-		"value17",
-		"value18",
-		"value19",
-		"value20",
-	}
+	written := make([]string, 0)
 	out := make([]string, 0)
+
+	n := forLine(t, func(line string) {
+		written = append(written, line)
+		l.Write(line)
+	})
 
 	for _, v := range written {
 		l.Write(v)
 	}
 
-	entries, err := l.Read(cg.GetName(), c.GetName(), len(written))
+	entries, err := l.Read(cg.GetName(), c.GetName(), n)
 	require.NoError(t, err)
 
 	for _, entry := range entries {
@@ -165,7 +149,7 @@ func TestLog_Write_Read_ordered(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	require.Equal(t, len(written), len(entries))
+	require.Equal(t, n, len(entries))
 	require.Equal(t, written, out)
 }
 
@@ -194,5 +178,4 @@ func TestLog_UpdateEntry(t *testing.T) {
 	require.Equal(t, entryID2, entries[1].ID)
 	require.Equal(t, "valueThree", entries[2].Payload.(string))
 	require.Equal(t, entryID3, entries[2].ID)
-
 }

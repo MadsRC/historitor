@@ -13,17 +13,23 @@ var (
 	ErrNoSuchEntry    = fmt.Errorf("no such entry")
 )
 
+// Log is a transactional log that allows for multiple readers and writers. It is backed by an in-memory radix tree.
+//
+// Instances of [Log] should have their [Log.Cleanup] method called periodically to ensure that non-acknowledged log
+// entries are released for re-delivery.
 type Log struct {
-	name             string
-	groups           map[string]*ConsumerGroup
-	treeMux          sync.RWMutex
-	entries          art.Tree
-	firstEntry       EntryID
-	lastEntry        EntryID
-	maxPendingAge    time.Duration
-	maxDeliveryCount int
+	name                   string
+	groups                 map[string]*ConsumerGroup
+	treeMux                sync.RWMutex
+	entries                art.Tree
+	firstEntry             EntryID
+	lastEntry              EntryID
+	maxPendingAge          time.Duration
+	maxDeliveryCount       int
+	attemptRedeliveryAfter time.Duration
 }
 
+// NewLog creates a new log with the provided options.
 func NewLog(options ...LogOption) (*Log, error) {
 	opts := defaultLogOptions
 	for _, opt := range globalLogOptions {
@@ -34,11 +40,13 @@ func NewLog(options ...LogOption) (*Log, error) {
 	}
 
 	return &Log{
-		name:          opts.Name,
-		maxPendingAge: opts.MaxPendingAge,
-		groups:        make(map[string]*ConsumerGroup),
-		treeMux:       sync.RWMutex{},
-		entries:       art.New(),
+		name:                   opts.Name,
+		maxPendingAge:          opts.MaxPendingAge,
+		maxDeliveryCount:       opts.MaxDeliveryCount,
+		attemptRedeliveryAfter: opts.AttemptRedeliveryAfter,
+		groups:                 make(map[string]*ConsumerGroup),
+		treeMux:                sync.RWMutex{},
+		entries:                art.New(),
 	}, nil
 }
 
@@ -86,8 +94,9 @@ func (l *Log) write(id *EntryID, payload any) {
 // Once a member reads an Entry, it is added to the Pending Entries List for the consumer group and only removed when the
 // member acknowledges the Entry. Entries that are pending will not be returned to any other group member.
 //
-// If the consumer has pending entries older than [WithLogMaxPendingAge], up to maxMessages will be returned from the
-// pending entries list before reading from the log.
+// If the consumer has pending entries older than [WithLogAttemptRedeliveryAfter] and that have been delivered more than
+// [WithLogMaxDeliveryCount], up to maxMessages will be returned from the pending entries list before reading from the
+// log.
 //
 // Read is safe for concurrent use.
 func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
@@ -126,7 +135,7 @@ func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
 
 func (l *Log) addPendingEntries(group *ConsumerGroup, consumer Consumer, maxMessages int, entries []Entry) ([]Entry, error) {
 	for _, pe := range group.getPendingEntriesForConsumer(consumer.name) {
-		if time.Since(pe.deliveredAt) > l.maxPendingAge {
+		if time.Since(pe.deliveredAt) > l.attemptRedeliveryAfter && pe.deliveryCount < l.maxDeliveryCount {
 			group.incrementDeliveryCountAndTime(pe.id)
 			p, ok := l.entries.Search(art.Key(pe.id.String()))
 			if !ok {
@@ -220,8 +229,12 @@ func (l *Log) Acknowledge(g, c string, id EntryID) error {
 	return nil
 }
 
-// Cleanup removes pending entries that are older than [WithLogMaxPendingAge] and have been delivered more than
-// [WithLogMaxDeliveryCount] times. This effectively releases the log entry back to the consumer group for reading.
+// Cleanup runs a series of housekeeping actions on the log.
+//
+//   - Remove pending entries that are older than [WithLogMaxPendingAge] to allow other consumers to attempt to process
+//     the log entry.
+//   - Remove pending entries that have been delivered more than [WithLogMaxDeliveryCount] times and are older than
+//     [WithLogAttemptRedeliveryAfter].
 //
 // Cleanup is safe for concurrent use.
 func (l *Log) Cleanup() {
@@ -230,7 +243,9 @@ func (l *Log) Cleanup() {
 
 	for _, group := range l.groups {
 		for _, pe := range group.pel {
-			if time.Since(pe.deliveredAt) > l.maxPendingAge && pe.deliveryCount > l.maxDeliveryCount {
+			if time.Since(pe.deliveredAt) > l.attemptRedeliveryAfter && pe.deliveryCount > l.maxDeliveryCount {
+				group.removePendingEntry(pe.id)
+			} else if time.Since(pe.deliveredAt) > l.maxPendingAge {
 				group.removePendingEntry(pe.id)
 			}
 		}

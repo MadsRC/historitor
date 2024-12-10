@@ -6,13 +6,16 @@ import (
 
 type logOptions struct {
 	// Name is the name of the log.
-	Name             string
-	MaxPendingAge    time.Duration
-	MaxDeliveryCount int
+	Name                   string
+	MaxPendingAge          time.Duration
+	MaxDeliveryCount       int
+	AttemptRedeliveryAfter time.Duration
 }
 
 var defaultLogOptions = logOptions{
-	MaxPendingAge: time.Second,
+	MaxPendingAge:          4 * time.Second,
+	MaxDeliveryCount:       3,
+	AttemptRedeliveryAfter: time.Second,
 }
 
 var globalLogOptions []LogOption
@@ -38,23 +41,32 @@ func newFuncLogOption(f func(*logOptions)) *funcLogOption {
 	}
 }
 
-// WithLogName returns a LogOption that uses the provided name.
+// WithLogName sets the name of the log to the provided name.
 func WithLogName(name string) LogOption {
 	return newFuncLogOption(func(opts *logOptions) {
 		opts.Name = name
 	})
 }
 
-// WithLogMaxPendingAge returns a LogOption that uses the provided max pending age.
+// WithLogMaxPendingAge sets the maximum age of a log entry before it is considered stale and should be removed from
+// the Pending Entries List. This will allow other consumers in the group to attempt to process the log entry.
 func WithLogMaxPendingAge(maxPendingAge time.Duration) LogOption {
 	return newFuncLogOption(func(opts *logOptions) {
 		opts.MaxPendingAge = maxPendingAge
 	})
 }
 
-// WithLogMaxDeliveryCount returns a LogOption that uses the provided max delivery count.
+// WithLogMaxDeliveryCount sets the maximum number of times re-delivery of a log entry is attempted.
 func WithLogMaxDeliveryCount(maxDeliveryCount int) LogOption {
 	return newFuncLogOption(func(opts *logOptions) {
 		opts.MaxDeliveryCount = maxDeliveryCount
+	})
+}
+
+// WithLogAttemptRedeliveryAfter sets the duration after which a log entry should be re-delivered to the consumer if it
+// has not been acknowledged.
+func WithLogAttemptRedeliveryAfter(attemptRedeliveryAfter time.Duration) LogOption {
+	return newFuncLogOption(func(opts *logOptions) {
+		opts.AttemptRedeliveryAfter = attemptRedeliveryAfter
 	})
 }
