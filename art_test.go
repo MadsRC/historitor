@@ -12,10 +12,10 @@ func TestART_iteration_order(t *testing.T) {
 	l := art.New()
 
 	ti := time.Now().Truncate(time.Millisecond)
-	idOne := EntryID{Time: ti, Seq: 0}
-	idTwo := EntryID{Time: ti, Seq: 1}
-	idThree := EntryID{Time: ti, Seq: 2}
-	idFour := EntryID{Time: ti, Seq: 3}
+	idOne := EntryID{time: ti, seq: 0}
+	idTwo := EntryID{time: ti, seq: 1}
+	idThree := EntryID{time: ti, seq: 2}
+	idFour := EntryID{time: ti, seq: 3}
 
 	l.Insert([]byte(idOne.String()), "value1")
 	l.Insert([]byte(idTwo.String()), "value2")

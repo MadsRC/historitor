@@ -16,11 +16,11 @@ func TestEntryID_IsZero(t *testing.T) {
 
 func TestEntryID(t *testing.T) {
 	e := EntryID{
-		Time: time.Now().Truncate(time.Millisecond),
-		Seq:  123,
+		time: time.Now().Truncate(time.Millisecond),
+		seq:  123,
 	}
 	s := e.String()
-	e2, err := NewEntryID(s)
+	e2, err := ParseEntryID(s)
 	require.NoError(t, err)
 	require.Equal(t, e, e2)
 }

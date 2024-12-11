@@ -61,7 +61,7 @@ func (l *Log) Size() int {
 func (l *Log) Write(payload any) EntryID {
 	l.treeMux.Lock()
 	id := EntryID{
-		Time: time.Now(),
+		time: time.Now(),
 	}
 	l.write(&id, payload)
 	l.treeMux.Unlock()
@@ -74,13 +74,13 @@ func (l *Log) Write(payload any) EntryID {
 //
 // The time of the EntryID is truncated to milliseconds.
 func (l *Log) write(id *EntryID, payload any) {
-	id.Time = id.Time.Truncate(time.Millisecond)
+	id.time = id.time.Truncate(time.Millisecond)
 	ov, upd := l.entries.Insert(art.Key(id.String()), payload)
 	if upd {
 		// restore the value we just overwrote
 		l.entries.Insert(art.Key(id.String()), ov)
 		// increment the sequence number and try again
-		id.Seq++
+		id.seq++
 		l.write(id, payload)
 	}
 	l.lastEntry = *id
@@ -167,7 +167,7 @@ func (l *Log) addEntries(group *ConsumerGroup, consumer Consumer, maxMessages in
 			break
 		}
 
-		eid, err := NewEntryID(string(n.Key()))
+		eid, err := ParseEntryID(string(n.Key()))
 		if err != nil {
 			return entries, err
 		}
