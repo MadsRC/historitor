@@ -18,7 +18,7 @@ func NewConsumer(options ...ConsumerOption) Consumer {
 	}
 }
 
-// GetName returns the name of the consumer.
+// GetName returns the name of the Consumer.
 func (c *Consumer) GetName() string {
 	return c.name
 }

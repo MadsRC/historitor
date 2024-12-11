@@ -120,7 +120,7 @@ func TestLog_Read(t *testing.T) {
 }
 
 // TestLog_Write_Read_ordered tests that the log writes and reads the expected number of lines in order of writing when
-// a single consumer reads the log.
+// a single Consumer reads the log.
 func TestLog_Write_Read_ordered(t *testing.T) {
 	c := historitor.NewConsumer(historitor.WithConsumerName(t.Name()))
 	cg := historitor.NewConsumerGroup(historitor.WithConsumerGroupName(t.Name()), historitor.WithConsumerGroupMember(c))

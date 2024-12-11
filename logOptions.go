@@ -63,7 +63,7 @@ func WithLogMaxDeliveryCount(maxDeliveryCount int) LogOption {
 	})
 }
 
-// WithLogAttemptRedeliveryAfter sets the duration after which a log entry should be re-delivered to the consumer if it
+// WithLogAttemptRedeliveryAfter sets the duration after which a log entry should be re-delivered to the Consumer if it
 // has not been acknowledged.
 func WithLogAttemptRedeliveryAfter(attemptRedeliveryAfter time.Duration) LogOption {
 	return newFuncLogOption(func(opts *logOptions) {

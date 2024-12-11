@@ -47,7 +47,7 @@ func TestLog_Read_from_beginning(t *testing.T) {
 			name:    "group1",
 			members: groupMembers,
 			mut:     sync.RWMutex{},
-			pel:     make(pendingEntriesList),
+			pel:     make(PendingEntriesList),
 			startAt: StartFromBeginning,
 		},
 	}

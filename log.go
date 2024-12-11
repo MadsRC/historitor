@@ -8,8 +8,8 @@ import (
 )
 
 var (
-	ErrNoSuchGroup    = fmt.Errorf("no such consumer group")
-	ErrNoSuchConsumer = fmt.Errorf("no such consumer")
+	ErrNoSuchGroup    = fmt.Errorf("no such Consumer group")
+	ErrNoSuchConsumer = fmt.Errorf("no such Consumer")
 	ErrNoSuchEntry    = fmt.Errorf("no such entry")
 )
 
@@ -89,12 +89,12 @@ func (l *Log) write(id *EntryID, payload any) {
 
 // Read reads up to maxMessages log entries from the log. If maxMessages is 0, it will read all log entries.
 // Returning an empty slice means there are no log entries to read.
-// Group and consumer name are used to track which log entries have been read by which consumer group members.
-// If a consumer group member has read a log entry, it will not be returned to any other group member.
-// Once a member reads an Entry, it is added to the Pending Entries List for the consumer group and only removed when the
+// Group and Consumer name are used to track which log entries have been read by which Consumer group members.
+// If a Consumer group member has read a log entry, it will not be returned to any other group member.
+// Once a member reads an Entry, it is added to the Pending Entries List for the Consumer group and only removed when the
 // member acknowledges the Entry. Entries that are pending will not be returned to any other group member.
 //
-// If the consumer has pending entries older than [WithLogAttemptRedeliveryAfter] and that have been delivered more than
+// If the Consumer has pending entries older than [WithLogAttemptRedeliveryAfter] and that have been delivered more than
 // [WithLogMaxDeliveryCount], up to maxMessages will be returned from the pending entries list before reading from the
 // log.
 //
@@ -104,7 +104,7 @@ func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrNoSuchGroup, g)
 	}
-	consumer, ok := group.getMember(c)
+	consumer, ok := group.GetMember(c)
 	if !ok {
 		return nil, fmt.Errorf("%w in group: %s (group): %s", ErrNoSuchConsumer, g, c)
 	}
@@ -134,15 +134,15 @@ func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
 }
 
 func (l *Log) addPendingEntries(group *ConsumerGroup, consumer Consumer, maxMessages int, entries []Entry) ([]Entry, error) {
-	for _, pe := range group.getPendingEntriesForConsumer(consumer.name) {
-		if time.Since(pe.deliveredAt) > l.attemptRedeliveryAfter && pe.deliveryCount < l.maxDeliveryCount {
-			group.incrementDeliveryCountAndTime(pe.id)
-			p, ok := l.entries.Search(art.Key(pe.id.String()))
+	for _, pe := range group.GetPendingEntriesForConsumer(consumer.name) {
+		if time.Since(pe.DeliveredAt) > l.attemptRedeliveryAfter && pe.DeliveryCount < l.maxDeliveryCount {
+			group.incrementDeliveryCountAndTime(pe.ID)
+			p, ok := l.entries.Search(art.Key(pe.ID.String()))
 			if !ok {
-				return entries, fmt.Errorf("couldn't locate PEL entry in log: %w: %s", ErrNoSuchEntry, pe.id)
+				return entries, fmt.Errorf("couldn't locate PEL entry in log: %w: %s", ErrNoSuchEntry, pe.ID)
 			}
 			entries = append(entries, Entry{
-				ID:      pe.id,
+				ID:      pe.ID,
 				Payload: p,
 			})
 			if maxMessages > 0 && len(entries) >= maxMessages {
@@ -173,13 +173,13 @@ func (l *Log) addEntries(group *ConsumerGroup, consumer Consumer, maxMessages in
 		}
 
 		// check if entry is pending
-		_, ok := group.getPendingEntry(eid)
+		_, ok := group.GetPendingEntry(eid)
 		if ok {
 			continue
 		}
 
 		// add entry to Pending Entries List
-		group.addPendingEntry(eid, consumer.name)
+		group.AddPendingEntry(eid, consumer.name)
 		entries = append(entries, Entry{
 			ID:      eid,
 			Payload: n.Value(),
@@ -200,14 +200,34 @@ func (l *Log) getGroup(name string) (*ConsumerGroup, bool) {
 	return g, ok
 }
 
+// AddGroup adds a Consumer group to the log.
 func (l *Log) AddGroup(group *ConsumerGroup) {
 	l.treeMux.Lock()
 	l.groups[group.name] = group
 	l.treeMux.Unlock()
 }
 
-// Acknowledge acknowledges that a consumer group member has read a log entry. The log entry is removed from the
-// consumer group's Pending Entries List.
+// RemoveGroup removes a Consumer group from the log.
+func (l *Log) RemoveGroup(name string) {
+	l.treeMux.Lock()
+	delete(l.groups, name)
+	l.treeMux.Unlock()
+}
+
+// ListGroups returns a list of all Consumer groups.
+func (l *Log) ListGroups() []*ConsumerGroup {
+	l.treeMux.RLock()
+	defer l.treeMux.RUnlock()
+
+	out := make([]*ConsumerGroup, 0, len(l.groups))
+	for _, g := range l.groups {
+		out = append(out, g)
+	}
+	return out
+}
+
+// Acknowledge acknowledges that a Consumer group member has read a log entry. The log entry is removed from the
+// Consumer group's Pending Entries List.
 //
 // Acknowledge is safe for concurrent use.
 func (l *Log) Acknowledge(g, c string, id EntryID) error {
@@ -216,15 +236,15 @@ func (l *Log) Acknowledge(g, c string, id EntryID) error {
 		return fmt.Errorf("%w: %s", ErrNoSuchGroup, g)
 	}
 
-	pe, ok := group.getPendingEntry(id)
+	pe, ok := group.GetPendingEntry(id)
 	if !ok {
 		return fmt.Errorf("entry %s not pending", id)
 	}
-	if pe.consumer != c {
-		return fmt.Errorf("%w: entry %s not pending for consumer %s", ErrNoSuchConsumer, id, c)
+	if pe.Consumer != c {
+		return fmt.Errorf("%w: entry %s not pending for Consumer %s", ErrNoSuchConsumer, id, c)
 	}
 
-	group.removePendingEntry(id)
+	group.RemovePendingEntry(id)
 
 	return nil
 }
@@ -243,10 +263,10 @@ func (l *Log) Cleanup() {
 
 	for _, group := range l.groups {
 		for _, pe := range group.pel {
-			if time.Since(pe.deliveredAt) > l.attemptRedeliveryAfter && pe.deliveryCount > l.maxDeliveryCount {
-				group.removePendingEntry(pe.id)
-			} else if time.Since(pe.deliveredAt) > l.maxPendingAge {
-				group.removePendingEntry(pe.id)
+			if time.Since(pe.DeliveredAt) > l.attemptRedeliveryAfter && pe.DeliveryCount > l.maxDeliveryCount {
+				group.RemovePendingEntry(pe.ID)
+			} else if time.Since(pe.DeliveredAt) > l.maxPendingAge {
+				group.RemovePendingEntry(pe.ID)
 			}
 		}
 	}

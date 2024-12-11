@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// TestNewConsumerGroup_default_members_different_addresses tests that consumer groups created with NewConsumerGroup
+// TestNewConsumerGroup_default_members_different_addresses tests that Consumer groups created with NewConsumerGroup
 // doesn't share the same members slice address.
 //
 // We do this using reflection to compare the map as pointers, instead of comparing the map contents or the map itself.
