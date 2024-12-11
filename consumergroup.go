@@ -148,3 +148,17 @@ func (c *ConsumerGroup) RemovePendingEntry(id EntryID) {
 	delete(c.pel, id)
 	c.mut.Unlock()
 }
+
+// GetPendingEntries returns all pending entries in the Consumer group's Pending Entries List.
+//
+// This method returns a copy of the PendingEntriesList. The caller is free to modify the returned list without
+// affecting the Consumer group's Pending Entries List.
+func (c *ConsumerGroup) GetPendingEntries() PendingEntriesList {
+	c.mut.RLock()
+	defer c.mut.RUnlock()
+	out := make(PendingEntriesList, len(c.pel))
+	for id, pe := range c.pel {
+		out[id] = pe
+	}
+	return out
+}
