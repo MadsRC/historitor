@@ -16,7 +16,7 @@ func TestEntryID_IsZero(t *testing.T) {
 
 func TestEntryID(t *testing.T) {
 	e := EntryID{
-		time: time.Now().Truncate(time.Millisecond),
+		time: time.Now().Truncate(time.Millisecond).UTC(),
 		seq:  123,
 	}
 	s := e.String()
@@ -56,4 +56,30 @@ func TestLog_Read_from_beginning(t *testing.T) {
 	entries, err := l.Read("group1", "consumer1", 3)
 	require.NoError(t, err)
 	require.Len(t, entries, 3)
+}
+
+func TestLog_Write_id_has_timezone_set_to_utc(t *testing.T) {
+	l, err := NewLog(WithLogName(t.Name()))
+	require.NoError(t, err)
+
+	id := l.Write("value")
+	require.Equal(t, "UTC", id.time.Location().String())
+}
+
+func TestLog_Read_id_has_timezone_set_to_utc(t *testing.T) {
+	tree := art.New()
+	keyOne := "1526919030474-55"
+	tree.Insert(art.Key(keyOne), "value")
+	c := NewConsumer(WithConsumerName(t.Name()))
+	cg := NewConsumerGroup(WithConsumerGroupName(t.Name()), WithConsumerGroupMember(c))
+	l, err := NewLog(WithLogName(t.Name()))
+	require.NoError(t, err)
+	l.AddGroup(cg)
+
+	l.entries = tree
+
+	entries, err := l.Read(cg.GetName(), c.GetName(), 1)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	require.Equal(t, "UTC", entries[0].ID.time.Location().String())
 }

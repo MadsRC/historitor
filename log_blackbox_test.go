@@ -179,3 +179,25 @@ func TestLog_UpdateEntry(t *testing.T) {
 	require.Equal(t, "valueThree", entries[2].Payload.(string))
 	require.Equal(t, entryID3, entries[2].ID)
 }
+
+// TestLog_Read_twice tests that two consecutive reads from a consumer, when the log has 1 entry, does not return the
+// same entry twice.
+func TestLog_Read_twice(t *testing.T) {
+	c := historitor.NewConsumer(historitor.WithConsumerName(t.Name()))
+	cg := historitor.NewConsumerGroup(historitor.WithConsumerGroupName(t.Name()), historitor.WithConsumerGroupMember(c))
+	l, err := historitor.NewLog(historitor.WithLogName(t.Name()))
+	require.NoError(t, err)
+	l.AddGroup(cg)
+
+	_ = l.Write("value")
+
+	entries1, err := l.Read(cg.GetName(), c.GetName(), 1)
+	require.NoError(t, err)
+	err = l.Acknowledge(cg.GetName(), c.GetName(), entries1[0].ID)
+	require.NoError(t, err)
+	entries2, err := l.Read(cg.GetName(), c.GetName(), 1)
+	require.NoError(t, err)
+
+	require.Empty(t, entries2)
+	require.NotEqual(t, entries1, entries2)
+}

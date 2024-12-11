@@ -1,12 +1,15 @@
 package historitor
 
-import art "github.com/plar/go-adaptive-radix-tree"
+import (
+	art "github.com/plar/go-adaptive-radix-tree"
+)
 
 // Ensure iterateFrom implements art.Iterator at compile time
 var _ art.Iterator = (*iterateFrom)(nil)
 
 // iterateFrom is an iterator that iterates over a tree starting from a given key. It implements the art.Iterator.
 // interface.
+// iterateFrom is not inclusive of the key it starts from.
 type iterateFrom struct {
 	key            art.Key
 	iter           art.Iterator
@@ -38,6 +41,14 @@ func (i *iterateFrom) Next() (art.Node, error) {
 	}
 	if string(n.Key()) == string(i.key) {
 		i.keyEncountered = true
+		if !i.iter.HasNext() {
+			return nil, art.ErrNoMoreNodes
+		}
+		n, err = i.iter.Next()
+		if err != nil {
+			return nil, err
+		}
+
 		return n, nil
 	}
 	for i.iter.HasNext() {

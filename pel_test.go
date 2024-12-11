@@ -2,7 +2,6 @@ package historitor
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
@@ -19,10 +18,8 @@ func TestPendingEntriesList_JSON(t *testing.T) {
 		DeliveryCount: 1,
 	}
 
-	b, err := json.Marshal(pel)
+	_, err := json.Marshal(pel)
 	require.NoError(t, err)
-	fmt.Println(string(b))
-	b, err = json.Marshal(pel[id])
+	_, err = json.Marshal(pel[id])
 	require.NoError(t, err)
-	fmt.Println(string(b))
 }

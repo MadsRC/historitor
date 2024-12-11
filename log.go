@@ -1,6 +1,7 @@
 package historitor
 
 import (
+	"errors"
 	"fmt"
 	"github.com/plar/go-adaptive-radix-tree"
 	"sync"
@@ -60,9 +61,7 @@ func (l *Log) Size() int {
 // Write is safe for concurrent use.
 func (l *Log) Write(payload any) EntryID {
 	l.treeMux.Lock()
-	id := EntryID{
-		time: time.Now(),
-	}
+	id := NewEntryID(time.Now().Truncate(time.Millisecond).UTC(), 0)
 	l.write(&id, payload)
 	l.treeMux.Unlock()
 	return id
@@ -98,6 +97,8 @@ func (l *Log) write(id *EntryID, payload any) {
 // [WithLogMaxDeliveryCount], up to maxMessages will be returned from the pending entries list before reading from the
 // log.
 //
+// If there are no more events to read from the log, the method will return an empty slice.
+//
 // Read is safe for concurrent use.
 func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
 	group, ok := l.getGroup(g)
@@ -125,10 +126,14 @@ func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
 	// no more pending entries, read from log
 	out, err = l.addEntries(group, *consumer, maxMessages, out)
 	if err != nil {
-		return nil, err
+		if !errors.Is(err, art.ErrNoMoreNodes) {
+			return nil, err
+		}
 	}
-	// update the startAt for the group
-	group.SetStartAt(out[len(out)-1].ID)
+	if len(out) > 0 && !errors.Is(err, art.ErrNoMoreNodes) {
+		// update the startAt for the group to the last entry read if we actually read something off the log
+		group.SetStartAt(out[len(out)-1].ID)
+	}
 
 	return out, nil
 }
@@ -164,7 +169,7 @@ func (l *Log) addEntries(group *ConsumerGroup, consumer Consumer, maxMessages in
 	for iter.HasNext() {
 		n, err := iter.Next()
 		if err != nil {
-			break
+			return nil, err
 		}
 
 		eid, err := ParseEntryID(string(n.Key()))
