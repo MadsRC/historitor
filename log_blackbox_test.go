@@ -2,6 +2,8 @@ package historitor_test
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/gob"
 	"github.com/MadsRC/historitor"
 	"github.com/stretchr/testify/require"
 	"os"
@@ -200,4 +202,37 @@ func TestLog_Read_twice(t *testing.T) {
 
 	require.Empty(t, entries2)
 	require.NotEqual(t, entries1, entries2)
+}
+
+// TestLogBinaryEncodingAndDecoding tests that a Log can be encoded and decoded using the gob package. The test verifies
+// that the encoding and decoding procedures do not lose any information.
+func TestLogBinaryEncodingAndDecoding(t *testing.T) {
+	cg := historitor.NewConsumerGroup(
+		historitor.WithConsumerGroupName("cg1"),
+		historitor.WithConsumerGroupMember(
+			historitor.NewConsumer(historitor.WithConsumerName("consumer1")),
+		),
+	)
+	l, err := historitor.NewLog(historitor.WithLogName("test"))
+	require.NoError(t, err)
+	l.AddGroup(cg)
+	l.Write("value")
+
+	buf := new(bytes.Buffer)
+	enc := gob.NewEncoder(buf)
+	err = enc.Encode(l)
+	require.NoError(t, err)
+	dec := gob.NewDecoder(buf)
+	var l2 historitor.Log
+	err = dec.Decode(&l2)
+	require.NoError(t, err)
+	msgL1, err := l.Read("cg1", "consumer1", 1)
+	msgL2, err := l2.Read("cg1", "consumer1", 1)
+	require.NoError(t, err)
+	require.Len(t, msgL2, 1)
+	require.Equal(t, msgL1[0].ID, msgL2[0].ID)
+	require.Equal(t, msgL1[0].Payload, msgL2[0].Payload)
+	require.Equal(t, l.Size(), l2.Size())
+	require.Equal(t, len(l.ListGroups()), len(l2.ListGroups()))
+	require.Equal(t, l.ListGroups()[0].GetName(), l2.ListGroups()[0].GetName())
 }

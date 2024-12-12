@@ -1,6 +1,8 @@
 package historitor
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"strconv"
 	"strings"
@@ -56,6 +58,31 @@ func (e *EntryID) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (e EntryID) MarshalBinary() ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(externalEntryID{
+		Time: e.time,
+		Seq:  e.seq,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (e *EntryID) UnmarshalBinary(data []byte) error {
+	var ee externalEntryID
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	err := dec.Decode(&ee)
+	if err != nil {
+		return err
+	}
+	e.time = ee.Time
+	e.seq = ee.Seq
+	return nil
+}
+
 // ParseEntryID parses a string representation of an EntryID.
 // The string must be in the format "time-seq" where time is the number of milliseconds since the Unix epoch and seq is
 // the sequence number. The time is truncated to milliseconds and timezone set to UTC.
@@ -73,4 +100,11 @@ func ParseEntryID(s string) (EntryID, error) {
 	e.time = t
 	e.seq = uint64(seq)
 	return e, nil
+}
+
+// externalEntryID is used to represent a version of en [EntryID] that can easily be encoded and decoded by the gob
+// package
+type externalEntryID struct {
+	Time time.Time
+	Seq  uint64
 }

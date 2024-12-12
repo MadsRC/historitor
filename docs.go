@@ -41,4 +41,10 @@
 // accumulate in the Pending Entries List (PEL) and never be processed. To handle dead consumers, the log implements
 // a housekeeping function called [Log.Cleanup]. Among other things, this function removed pending entries that are
 // older than [WithLogMaxPendingAge] to allow other consumers to attempt to process the log entry.
+//
+// # Data persistence
+//
+// The log is a memory construct, with persistence enabled by Go's [encoding/gob] package. The log can be saved to disk
+// and loaded from disk by using [encoding/gob.Encoder] and [encoding/gob.Decoder] in combination with an [io.Writer]
+// and [io.Reader] pointed towards persistent storage.
 package historitor

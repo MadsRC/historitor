@@ -1,6 +1,8 @@
 package historitor
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"github.com/plar/go-adaptive-radix-tree"
@@ -13,6 +15,18 @@ var (
 	ErrNoSuchConsumer = fmt.Errorf("no such Consumer")
 	ErrNoSuchEntry    = fmt.Errorf("no such entry")
 )
+
+// externalLog is used to represent a Log in a way that can easily be encoded and decoded using the gob package.
+type externalLog struct {
+	Name                   string
+	Groups                 map[string]*ConsumerGroup
+	Entries                []Entry
+	FirstEntry             EntryID
+	LastEntry              EntryID
+	MaxPendingAge          time.Duration
+	MaxDeliveryCount       int
+	AttemptRedeliveryAfter time.Duration
+}
 
 // Log is a transactional log that allows for multiple readers and writers. It is backed by an in-memory radix tree.
 //
@@ -290,4 +304,63 @@ func (l *Log) UpdateEntry(id EntryID, payload any) bool {
 	}
 
 	return upd
+}
+
+// MarshalBinary encodes a Log into a gob-encoded byte slice.
+func (l *Log) MarshalBinary() ([]byte, error) {
+	l.treeMux.RLock()
+	defer l.treeMux.RUnlock()
+	el := externalLog{
+		Name:                   l.name,
+		Groups:                 l.groups,
+		Entries:                make([]Entry, 0),
+		FirstEntry:             l.firstEntry,
+		LastEntry:              l.lastEntry,
+		MaxPendingAge:          l.maxPendingAge,
+		MaxDeliveryCount:       l.maxDeliveryCount,
+		AttemptRedeliveryAfter: l.attemptRedeliveryAfter,
+	}
+	l.entries.ForEach(func(node art.Node) (cont bool) {
+		id, err := ParseEntryID(string(node.Key()))
+		if err != nil {
+			return false
+		}
+		el.Entries = append(el.Entries, Entry{
+			ID:      id,
+			Payload: node.Value(),
+		})
+		return true
+	})
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(el)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// UnmarshalBinary decodes a gob-encoded byte slice into a Log.
+func (l *Log) UnmarshalBinary(data []byte) error {
+	l.treeMux.Lock()
+	defer l.treeMux.Unlock()
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	var el externalLog
+	err := dec.Decode(&el)
+	if err != nil {
+		return err
+	}
+	l.name = el.Name
+	l.groups = el.Groups
+	l.firstEntry = el.FirstEntry
+	l.lastEntry = el.LastEntry
+	l.maxPendingAge = el.MaxPendingAge
+	l.maxDeliveryCount = el.MaxDeliveryCount
+	l.attemptRedeliveryAfter = el.AttemptRedeliveryAfter
+	l.entries = art.New()
+	for _, e := range el.Entries {
+		l.entries.Insert([]byte(e.ID.String()), e.Payload)
+	}
+
+	return nil
 }
