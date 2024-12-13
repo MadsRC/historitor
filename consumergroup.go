@@ -1,6 +1,8 @@
 package historitor
 
 import (
+	"bytes"
+	"encoding/gob"
 	"sync"
 	"time"
 )
@@ -161,4 +163,41 @@ func (c *ConsumerGroup) GetPendingEntries() PendingEntriesList {
 		out[id] = pe
 	}
 	return out
+}
+
+type externalConsumerGroup struct {
+	Name    string
+	Members map[string]Consumer
+	PEL     PendingEntriesList
+	StartAt EntryID
+}
+
+func (cg *ConsumerGroup) MarshalBinary() ([]byte, error) {
+	ecg := externalConsumerGroup{
+		Name:    cg.name,
+		Members: cg.members,
+		PEL:     cg.pel,
+		StartAt: cg.startAt,
+	}
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(ecg)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (cg *ConsumerGroup) UnmarshalBinary(data []byte) error {
+	var ecg externalConsumerGroup
+	dec := gob.NewDecoder(bytes.NewReader(data))
+	err := dec.Decode(&ecg)
+	if err != nil {
+		return err
+	}
+	cg.name = ecg.Name
+	cg.members = ecg.Members
+	cg.pel = ecg.PEL
+	cg.startAt = ecg.StartAt
+	return nil
 }
