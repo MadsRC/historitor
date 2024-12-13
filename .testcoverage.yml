@@ -1,4 +1,4 @@
-profile: unit_cover.out
+profile: unit_cover.out,integration_cover.out
 local-prefix: github.com/MadsRC/historitor
 threshold:
   file: 70
