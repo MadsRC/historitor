@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+#MISE description="Run pre-commit tasks"
+
+echo "$0"
+echo "$1"
+echo "$2"

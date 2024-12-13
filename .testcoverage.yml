@@ -1,0 +1,6 @@
+profile: unit_cover.out
+local-prefix: github.com/MadsRC/historitor
+threshold:
+  file: 70
+  package: 80
+  total: 95

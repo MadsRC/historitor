@@ -1,0 +1,4 @@
+[tools]
+go = "latest"
+"go:github.com/vladopajic/go-test-coverage/v2" = "latest"
+"go:golang.org/x/pkgsite/cmd/pkgsite" = "latest"
