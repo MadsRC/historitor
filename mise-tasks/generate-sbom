@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 #MISE description="Generate SBOM for project"
-cyclonedx-gomod mod -licenses -json -type library -test -std -output sbom.json .
+mkdir -p dist
+cyclonedx-gomod mod -licenses -json -type library -test -std -output dist/sbom.json .
 # Add SBOM to the commit
 git add sbom.json
