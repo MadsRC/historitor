@@ -12,7 +12,12 @@ Historitor is a transactional log implementation, inspired by Redis and Kafka.
 
 ## Security
 
+The security policy for this project can be found [here](./SECURITY.md).
+
 ### Supply Chain
+
+In an effort to help improve the security of the global software supply chain, this project intends to implement
+Level 3 SLSA provenance attestation by the time it reaches v1.0.0.
 
 ## Software Bill of Materials (SBOM)
 
