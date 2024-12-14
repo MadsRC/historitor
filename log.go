@@ -14,6 +14,7 @@ var (
 	ErrNoSuchGroup    = fmt.Errorf("no such Consumer group")
 	ErrNoSuchConsumer = fmt.Errorf("no such Consumer")
 	ErrNoSuchEntry    = fmt.Errorf("no such entry")
+	ErrNoMoreEntries  = fmt.Errorf("no more entries")
 )
 
 // externalLog is used to represent a Log in a way that can easily be encoded and decoded using the gob package.
@@ -140,11 +141,11 @@ func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
 	// no more pending entries, read from log
 	out, err = l.addEntries(group, *consumer, maxMessages, out)
 	if err != nil {
-		if !errors.Is(err, art.ErrNoMoreNodes) {
+		if !errors.Is(err, ErrNoMoreEntries) {
 			return nil, err
 		}
 	}
-	if len(out) > 0 && !errors.Is(err, art.ErrNoMoreNodes) {
+	if len(out) > 0 && !errors.Is(err, ErrNoMoreEntries) {
 		// update the startAt for the group to the last entry read if we actually read something off the log
 		group.SetStartAt(out[len(out)-1].ID)
 	}

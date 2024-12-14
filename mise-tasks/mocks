@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+#MISE description="Generate mocks"
+#MISE outputs=["mocks/art/mock.go"]
+
+mkdir -p mocks/art
+mockery

@@ -1,6 +1,8 @@
 package historitor
 
 import (
+	"errors"
+	"fmt"
 	art "github.com/plar/go-adaptive-radix-tree"
 )
 
@@ -30,11 +32,14 @@ func (i *iterateFrom) HasNext() bool {
 }
 
 // Next returns the next node in the iteration. Next will skip nodes until it finds the node with the key that was
-// provided when creating the iterator. If the key is not found, Next will return art.ErrNoMoreNodes.
+// provided when creating the iterator. If the key is not found, Next will return [ErrNoMoreEntries].
 func (i *iterateFrom) Next() (art.Node, error) {
 	n, err := i.iter.Next()
 	if err != nil {
-		return nil, err
+		if errors.Is(err, art.ErrNoMoreNodes) {
+			return nil, ErrNoMoreEntries
+		}
+		return nil, fmt.Errorf("error getting next entry: %s", err)
 	}
 	if i.keyEncountered {
 		return n, nil
@@ -42,11 +47,14 @@ func (i *iterateFrom) Next() (art.Node, error) {
 	if string(n.Key()) == string(i.key) {
 		i.keyEncountered = true
 		if !i.iter.HasNext() {
-			return nil, art.ErrNoMoreNodes
+			return nil, ErrNoMoreEntries
 		}
 		n, err = i.iter.Next()
 		if err != nil {
-			return nil, err
+			if errors.Is(err, art.ErrNoMoreNodes) {
+				return nil, ErrNoMoreEntries
+			}
+			return nil, fmt.Errorf("error getting next entry: %s", err)
 		}
 
 		return n, nil
@@ -54,13 +62,18 @@ func (i *iterateFrom) Next() (art.Node, error) {
 	for i.iter.HasNext() {
 		val, err := i.iter.Next()
 		if err != nil {
-			return nil, err
+			if errors.Is(err, art.ErrNoMoreNodes) {
+				return nil, ErrNoMoreEntries
+			}
+			return nil, fmt.Errorf("error getting next entry: %s", err)
+		}
+		if i.keyEncountered {
+			return val, nil
 		}
 		if string(val.Key()) == string(i.key) {
 			i.keyEncountered = true
-			return val, nil
 		}
 	}
 
-	return nil, art.ErrNoMoreNodes
+	return nil, ErrNoMoreEntries
 }
