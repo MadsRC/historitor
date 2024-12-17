@@ -3,7 +3,7 @@ package historitor
 import (
 	"errors"
 	"fmt"
-	art "github.com/plar/go-adaptive-radix-tree"
+	art "github.com/plar/go-adaptive-radix-tree/v2"
 )
 
 // Ensure iterateFrom implements art.Iterator at compile time
@@ -36,12 +36,9 @@ func (i *iterateFrom) HasNext() bool {
 func (i *iterateFrom) Next() (art.Node, error) {
 	n, err := i.iter.Next()
 	if err != nil {
-		if errors.Is(err, art.ErrNoMoreNodes) {
-			return nil, ErrNoMoreEntries
-		}
-		return nil, fmt.Errorf("error getting next entry: %s", err)
+		return nil, nextEntryError(err, "error getting next entry")
 	}
-	if i.keyEncountered {
+	if i.keyEncountered || i.key == nil {
 		return n, nil
 	}
 	if string(n.Key()) == string(i.key) {
@@ -51,10 +48,7 @@ func (i *iterateFrom) Next() (art.Node, error) {
 		}
 		n, err = i.iter.Next()
 		if err != nil {
-			if errors.Is(err, art.ErrNoMoreNodes) {
-				return nil, ErrNoMoreEntries
-			}
-			return nil, fmt.Errorf("error getting next entry: %s", err)
+			return nil, nextEntryError(err, "error getting next entry")
 		}
 
 		return n, nil
@@ -62,10 +56,7 @@ func (i *iterateFrom) Next() (art.Node, error) {
 	for i.iter.HasNext() {
 		val, err := i.iter.Next()
 		if err != nil {
-			if errors.Is(err, art.ErrNoMoreNodes) {
-				return nil, ErrNoMoreEntries
-			}
-			return nil, fmt.Errorf("error getting next entry: %s", err)
+			return nil, nextEntryError(err, "error getting next entry")
 		}
 		if i.keyEncountered {
 			return val, nil
@@ -76,4 +67,11 @@ func (i *iterateFrom) Next() (art.Node, error) {
 	}
 
 	return nil, ErrNoMoreEntries
+}
+
+func nextEntryError(err error, msg string) error {
+	if errors.Is(err, art.ErrNoMoreNodes) {
+		return ErrNoMoreEntries
+	}
+	return fmt.Errorf("%s: %s", msg, err)
 }

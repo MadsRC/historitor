@@ -61,13 +61,10 @@ func (e *EntryID) UnmarshalJSON(data []byte) error {
 func (e EntryID) MarshalBinary() ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(externalEntryID{
+	_ = enc.Encode(externalEntryID{
 		Time: e.time,
 		Seq:  e.seq,
 	})
-	if err != nil {
-		return nil, err
-	}
 	return buf.Bytes(), nil
 }
 

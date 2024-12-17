@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"github.com/plar/go-adaptive-radix-tree"
+	"github.com/plar/go-adaptive-radix-tree/v2"
 	"sync"
 	"time"
 )

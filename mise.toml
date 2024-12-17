@@ -1,5 +1,4 @@
 [tools]
-"aqua:vektra/mockery" = "2.50.0"
 go = "1.23.4"
 "go:github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod" = "1.8.0"
 "go:github.com/vladopajic/go-test-coverage/v2" = "2.11.1"

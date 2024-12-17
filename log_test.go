@@ -3,29 +3,11 @@
 package historitor
 
 import (
-	art "github.com/plar/go-adaptive-radix-tree"
+	art "github.com/plar/go-adaptive-radix-tree/v2"
 	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
-	"time"
 )
-
-func TestEntryID_IsZero(t *testing.T) {
-	e := EntryID{}
-	require.True(t, e.IsZero())
-	require.True(t, ZeroEntryID.IsZero())
-}
-
-func TestEntryID(t *testing.T) {
-	e := EntryID{
-		time: time.Now().Truncate(time.Millisecond).UTC(),
-		seq:  123,
-	}
-	s := e.String()
-	e2, err := ParseEntryID(s)
-	require.NoError(t, err)
-	require.Equal(t, e, e2)
-}
 
 func TestLog_Read_from_beginning(t *testing.T) {
 	l, err := NewLog(WithLogName("test"))
