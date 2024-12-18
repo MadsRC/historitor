@@ -11,23 +11,22 @@
 
 Historitor is a transactional log implementation, inspired by Redis and Kafka.
 
+We urge you to read the [documentation](https://pkg.go.dev/github.com/MadsRC/historitor) to get a better understanding
+of the project.
+
+## Go Support
+
+Historitor follows the same support policy as the Go project, meaning that the two most recent major Go versions are
+supported.
+
+Read more about the Go support policy [here](https://go.dev/doc/devel/release#policy).
+
 ## Security
 
 The security policy for this project can be found [here](./SECURITY.md).
 
-### Supply Chain
+### Software Bill of Materials (SBOM)
 
-In an effort to help improve the security of the global software supply chain, this project intends to implement
-Level 3 SLSA provenance attestation by the time it reaches v1.0.0.
-
-## Software Bill of Materials (SBOM)
-
-An SBOM is generated for each release. The process is to create the release tag, push it, generate the SBOM and then create
-a GitHub release for the version and attach the SBOM.
-
-Creating the SBOM can be done with like this:
-
-```shell
-mise run generate-sbom
-```
-
+Each release of Historitor contains a Software Bill of Materials (SBOM) in the form of a JSON file. The SBOM is
+generated as part of the release process and is available in the release artifacts. The release artifacts for the latest
+release can be found [here](https://github.com/MadsRC/historitor/releases/latest).

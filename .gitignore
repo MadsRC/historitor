@@ -110,3 +110,4 @@ go.work.sum
 
 dist/
 sbom.json
+.semrel
