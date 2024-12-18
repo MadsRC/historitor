@@ -1,0 +1,37 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    skip: true
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+sboms:
+  - id: default
+    documents:
+      - "historitor.cdx.json"
+    cmd: mise
+    args: ["run", "generate-sbom"]
+    artifacts: any
+
+release:
+  # If set, will create a release discussion in the category specified.
+  #
+  # Warning: do not use categories in the 'Announcement' format.
+  #  Check https://github.com/goreleaser/goreleaser/issues/2304 for more info.
+  #
+  # Default: ''.
+  discussion_category_name: General
+  prerelease: auto
+  # Upload metadata.json and artifacts.json to the release as well.
+  include_meta: true
