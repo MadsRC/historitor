@@ -48,7 +48,7 @@ type Log struct {
 // NewLog creates a new log with the provided options.
 func NewLog(options ...LogOption) (*Log, error) {
 	opts := defaultLogOptions
-	for _, opt := range globalLogOptions {
+	for _, opt := range GlobalLogOptions {
 		opt.apply(&opts)
 	}
 	for _, opt := range options {

@@ -118,6 +118,7 @@ func TestEntryID_UnmarshalJSON_error(t *testing.T) {
 
 // TestEntryID_MarshalBinary tests the MarshalBinary function.
 func TestEntryID_MarshalBinary(t *testing.T) {
+	// TODO: Investigate why this test fails when running all tests.
 	// For some reason, "go test -run TestEntryID_MarshalBinary" succeeds, but "go test" fails on this test.
 	// It appears that go decides to encode the message differently when running all tests.
 	// Further investigation is needed.

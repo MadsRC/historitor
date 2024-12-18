@@ -18,7 +18,7 @@ var defaultLogOptions = logOptions{
 	AttemptRedeliveryAfter: time.Second,
 }
 
-var globalLogOptions []LogOption
+var GlobalLogOptions []LogOption
 
 // LogOption is an option for configuring a Log.
 type LogOption interface {
