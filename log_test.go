@@ -109,3 +109,44 @@ func TestLog_Read_from_beginning(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, entries, 3)
 }
+
+func TestLog_RemoveGroup(t *testing.T) {
+	l := &Log{
+		groups: map[string]*ConsumerGroup{
+			"group1": {
+				name: "group1",
+			},
+		},
+	}
+	l.RemoveGroup("group1")
+	require.Len(t, l.groups, 0)
+}
+
+func TestLog_Cleanup(t *testing.T) {
+	l := &Log{
+		maxDeliveryCount: 3,
+		maxPendingAge:    10 * time.Second,
+		groups: map[string]*ConsumerGroup{
+			"group1": {
+				name: "group1",
+				pel: PendingEntriesList{
+					fakeTestEntryID1: {
+						ID:            fakeTestEntryID1,
+						Consumer:      "consumer1",
+						DeliveredAt:   time.Now().Add(-time.Hour),
+						DeliveryCount: 1,
+					},
+					fakeTestEntryID2: {
+						ID:            fakeTestEntryID2,
+						Consumer:      "consumer1",
+						DeliveredAt:   time.Now(),
+						DeliveryCount: 99,
+					},
+				},
+			},
+		},
+	}
+
+	l.Cleanup()
+	require.Len(t, l.groups["group1"].pel, 0)
+}

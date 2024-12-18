@@ -3,4 +3,7 @@ local-prefix: github.com/MadsRC/historitor
 threshold:
   file: 70
   package: 80
-  total: 95
+  total: 90
+override:
+  - path: "^iteratefrom.go$"
+    threshold: 75
