@@ -21,7 +21,7 @@ type ConsumerGroup struct {
 // NewConsumerGroup creates a new Consumer group with the provided options.
 func NewConsumerGroup(options ...ConsumerGroupOption) *ConsumerGroup {
 	opts := newDefaultConsumerGroupOptions()
-	for _, opt := range globalConsumerGroupOptions {
+	for _, opt := range GlobalConsumerGroupOptions {
 		opt.apply(&opts)
 	}
 	for _, opt := range options {
@@ -67,9 +67,9 @@ func (c *ConsumerGroup) AddMember(member Consumer) {
 
 // RemoveMember removes the Consumer group member with the given name. If the member does not exist, this function does
 // nothing.
-func (c *ConsumerGroup) RemoveMember(member Consumer) {
+func (c *ConsumerGroup) RemoveMember(member string) {
 	c.mut.Lock()
-	delete(c.members, member.name)
+	delete(c.members, member)
 	c.mut.Unlock()
 }
 
@@ -116,30 +116,24 @@ func (c *ConsumerGroup) GetPendingEntriesForConsumer(consumer string) []PendingE
 }
 
 // AddPendingEntry adds a pending entry to the Consumer group's Pending Entries List. The pending entry is associated
-// with the given ID and Consumer.
+// with the given ID and Consumer. If the entry already exists in the Pending Entries List, this method will increment
+// the delivery count and update the DeliveredAt time.
 func (c *ConsumerGroup) AddPendingEntry(id EntryID, consumer string) {
 	c.mut.Lock()
+	pe, exists := c.pel[id]
+	if exists {
+		pe.DeliveryCount++
+		pe.DeliveredAt = time.Now()
+		c.pel[id] = pe
+		c.mut.Unlock()
+		return
+	}
 	c.pel[id] = PendingEntry{
 		ID:            id,
 		Consumer:      consumer,
 		DeliveredAt:   time.Now(),
 		DeliveryCount: 1,
 	}
-	c.mut.Unlock()
-}
-
-// incrementDeliveryCountAndTime increments the delivery count and sets the DeliveredAt time for the pending entry with
-// the given ID. If the pending entry does not exist, this function does nothing.
-func (c *ConsumerGroup) incrementDeliveryCountAndTime(id EntryID) {
-	c.mut.Lock()
-	pe, ok := c.pel[id]
-	if !ok {
-		c.mut.Unlock()
-		return
-	}
-	pe.DeliveryCount++
-	pe.DeliveredAt = time.Now()
-	c.pel[id] = pe
 	c.mut.Unlock()
 }
 
@@ -151,11 +145,11 @@ func (c *ConsumerGroup) RemovePendingEntry(id EntryID) {
 	c.mut.Unlock()
 }
 
-// GetPendingEntries returns all pending entries in the Consumer group's Pending Entries List.
+// ListPendingEntries returns all pending entries in the Consumer group's Pending Entries List.
 //
 // This method returns a copy of the PendingEntriesList. The caller is free to modify the returned list without
 // affecting the Consumer group's Pending Entries List.
-func (c *ConsumerGroup) GetPendingEntries() PendingEntriesList {
+func (c *ConsumerGroup) ListPendingEntries() PendingEntriesList {
 	c.mut.RLock()
 	defer c.mut.RUnlock()
 	out := make(PendingEntriesList, len(c.pel))
@@ -181,10 +175,7 @@ func (cg *ConsumerGroup) MarshalBinary() ([]byte, error) {
 	}
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(ecg)
-	if err != nil {
-		return nil, err
-	}
+	_ = enc.Encode(ecg)
 	return buf.Bytes(), nil
 }
 

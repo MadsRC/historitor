@@ -156,7 +156,7 @@ func (l *Log) Read(g, c string, maxMessages int) ([]Entry, error) {
 func (l *Log) addPendingEntries(group *ConsumerGroup, consumer Consumer, maxMessages int, entries []Entry) ([]Entry, error) {
 	for _, pe := range group.GetPendingEntriesForConsumer(consumer.name) {
 		if time.Since(pe.DeliveredAt) > l.attemptRedeliveryAfter && pe.DeliveryCount < l.maxDeliveryCount {
-			group.incrementDeliveryCountAndTime(pe.ID)
+			group.AddPendingEntry(pe.ID, consumer.name)
 			p, ok := l.entries.Search(art.Key(pe.ID.String()))
 			if !ok {
 				return entries, fmt.Errorf("couldn't locate PEL entry in log: %w: %s", ErrNoSuchEntry, pe.ID)

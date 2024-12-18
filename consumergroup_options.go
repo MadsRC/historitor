@@ -13,7 +13,7 @@ func newDefaultConsumerGroupOptions() consumerGroupOptions {
 	}
 }
 
-var globalConsumerGroupOptions []ConsumerGroupOption
+var GlobalConsumerGroupOptions []ConsumerGroupOption
 
 // ConsumerGroupOption is an option for configuring a ConsumerGroup.
 type ConsumerGroupOption interface {
