@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 #MISE description="Create a release"
-goreleaser release --clean
+semantic-release --hooks goreleaser
