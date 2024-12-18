@@ -45,14 +45,14 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: integration-profile
-      - name: download artifact (main.breakdown)
-        id: download-main-breakdown
-        uses: dawidd6/action-download-artifact@80620a5d27ce0ae443b965134db88467fc607b43 # v7
-        with:
-          branch: main
-          workflow_conclusion: success
-          name: main.breakdown
-          #if_no_artifact_found: fail
+      #- name: download artifact (main.breakdown)
+      #  id: download-main-breakdown
+      #  uses: dawidd6/action-download-artifact@80620a5d27ce0ae443b965134db88467fc607b43 # v7
+      #  with:
+      #    branch: main
+      #    workflow_conclusion: success
+      #    name: main.breakdown
+      #    if_no_artifact_found: fail
       - name: check test coverage
         id: coverage
         uses: vladopajic/go-test-coverage@v2
@@ -62,7 +62,7 @@ jobs:
           git-branch: badges
           git-token: ${{ github.ref_name == 'main' && secrets.GITHUB_TOKEN || '' }}
           breakdown-file-name: ${{ github.ref_name == 'main' && 'main.breakdown' || '' }}
-          diff-base-breakdown-file-name: ${{ steps.download-main-breakdown.outputs.found_artifact && 'main.breakdown' || '' }}
+      #    diff-base-breakdown-file-name: ${{ steps.download-main-breakdown.outputs.found_artifact && 'main.breakdown' || '' }}
       - name: upload artifact (main.breakdown)
         uses: actions/upload-artifact@v4
         if: github.ref_name == 'main'
