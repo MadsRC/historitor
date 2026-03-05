@@ -3,7 +3,7 @@ module github.com/MadsRC/historitor
 go 1.23.4
 
 require (
-	github.com/plar/go-adaptive-radix-tree/v2 v2.0.3
+	github.com/plar/go-adaptive-radix-tree/v2 v2.0.4
 	github.com/stretchr/testify v1.10.0
 )
 
